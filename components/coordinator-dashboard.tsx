@@ -43,8 +43,10 @@ export function CoordinatorDashboard() {
   const [maturityLevel, setMaturityLevel] = useState<"advanced" | "early" | null>(null)
   const [formData, setFormData] = useState<KoboFormData[]>([])
   const [error, setError] = useState<string | null>(null)
-  // Simplified - no need to pass API token since proxy handles it
+  // Initialize API client directly with the token
   const [apiClient] = useState<KoboApiClient>(() => new KoboApiClient())
+
+
   const handleSearch = async () => {
     if (!toolId.trim()) {
       setError("Please enter a Tool ID")
@@ -157,7 +159,7 @@ export function CoordinatorDashboard() {
               </CardHeader>
               <CardContent>
                 {form.data.length > 0 ? (
-                  <DataTable data={form.data} />
+                  <DataTable data={form.data} questions={form.questions || []} />
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     {form.error ? "Failed to load data" : "No matching responses found for this tool ID"}

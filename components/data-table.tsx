@@ -1,154 +1,238 @@
-"use client"
+import React, { useMemo } from 'react';
 
-import { useState, useMemo } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { ChevronUp, ChevronDown, Search } from "lucide-react"
-
-interface DataTableProps {
-  data: any[]
+// Interface for QuestionLabel (unchanged)
+export interface QuestionLabel {
+  name: string; // Field name like "Q_13110000" or "group_toolid/Q_13110000"
+  label: string; // Human-readable question from Excel column C
+  type: string; // Field type
+  choices?: Array<{ name: string; label: string }>; // For select questions
 }
 
-export function DataTable({ data }: DataTableProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [sortColumn, setSortColumn] = useState<string | null>(null)
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+interface DataTableProps {
+  data: any[];
+  questions: QuestionLabel[];
+}
 
-  // Get all unique columns from the data
-  const columns = useMemo(() => {
-    if (!data || data.length === 0) return []
+// Interface for display columns to ensure no null values
+interface DisplayColumn {
+  key: string;
+  label: string;
+  type: string;
+  choices: { name: string; label: string }[];
+}
 
-    const allKeys = new Set<string>()
-    data.forEach((row) => {
-      Object.keys(row).forEach((key) => allKeys.add(key))
-    })
+export function DataTable({ data, questions }: DataTableProps) {
+  const { displayColumns, tableData } = useMemo(() => {
+    if (!data.length) return { displayColumns: [], tableData: [] };
 
-    return Array.from(allKeys).filter(
-      (key) =>
-        !key.startsWith("_") && // Filter out internal fields
-        key !== "__version__" &&
-        key !== "formhub/uuid",
-    )
-  }, [data])
+    // Get unique field names in the order they appear in the first record (JSON order)
+    const firstRecord = data[0] || {};
+    const orderedFields = Object.keys(firstRecord).filter(
+      key =>
+        !key.startsWith('_') &&
+        !key.startsWith('formhub/') &&
+        !key.startsWith('meta/') &&
+        key !== '__version__'
+    );
 
-  // Filter and sort data
-  const processedData = useMemo(() => {
-    let filtered = data
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = data.filter((row) =>
-        Object.values(row).some((value) => String(value).toLowerCase().includes(searchTerm.toLowerCase())),
-      )
-    }
-
-    // Apply sorting
-    if (sortColumn) {
-      filtered = [...filtered].sort((a, b) => {
-        const aVal = a[sortColumn]
-        const bVal = b[sortColumn]
-
-        if (aVal === bVal) return 0
-
-        const comparison = aVal < bVal ? -1 : 1
-        return sortDirection === "asc" ? comparison : -comparison
+    // Create display columns only for fields in data that have matching questions in Excel
+    const displayColumns: DisplayColumn[] = orderedFields
+      .map(fieldName => {
+        // Normalize fieldName to match Excel (remove group prefix)
+        const normalizedField = fieldName.split('/').pop() || fieldName;
+        const question = questions.find(
+          q => q.name === normalizedField || q.name === fieldName
+        );
+        if (!question) return null; // Skip if no matching question in Excel
+        return {
+          key: fieldName, // Keep original field name for data access
+          label: question.label || 'Unknown Question',
+          type: question.type || 'text',
+          choices: question.choices || []
+        };
       })
-    }
+      .filter((col): col is DisplayColumn => col !== null) // Type guard to exclude null
+      .sort((a, b) => {
+        // Put tool ID fields first, preserve JSON order for others
+        if (a.key.includes('toolid') || a.key.includes('Q_13110000')) return -1;
+        if (b.key.includes('toolid') || b.key.includes('Q_13110000')) return 1;
+        return 0; // Preserve original JSON order
+      });
 
-    return filtered
-  }, [data, searchTerm, sortColumn, sortDirection])
+    // Process table data with choice labels
+    const tableData = data.map(record => {
+      const processedRecord: any = {};
+      displayColumns.forEach(col => {
+        let value = record[col.key];
 
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-    } else {
-      setSortColumn(column)
-      setSortDirection("asc")
-    }
-  }
+        // Convert choice values to labels if available
+        if (value && col.choices.length > 0) {
+          const choice = col.choices.find(c => c.name === value);
+          if (choice) {
+            value = choice.label;
+          }
+        }
 
-  const formatCellValue = (value: any) => {
-    if (value === null || value === undefined) return "-"
-    if (typeof value === "object") return JSON.stringify(value)
-    if (typeof value === "boolean") return value ? "Yes" : "No"
-    return String(value)
-  }
+        processedRecord[col.key] = value ?? '-'; // Use nullish coalescing for undefined/null
+      });
+      return processedRecord;
+    });
 
-  if (!data || data.length === 0) {
-    return <div className="text-center py-8 text-muted-foreground">No data available</div>
+    return { displayColumns, tableData };
+  }, [data, questions]);
+
+  if (!tableData.length) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No data available
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Search and Stats */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search data..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">
-            {processedData.length} of {data.length} records
-          </Badge>
-          <Badge variant="outline">{columns.length} columns</Badge>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto max-h-96">
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                {columns.map((column) => (
-                  <TableHead key={column} className="min-w-32">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-auto p-0 font-semibold hover:bg-transparent"
-                      onClick={() => handleSort(column)}
-                    >
-                      <span className="truncate max-w-32" title={column}>
-                        {column.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                      </span>
-                      {sortColumn === column &&
-                        (sortDirection === "asc" ? (
-                          <ChevronUp className="ml-1 h-3 w-3" />
-                        ) : (
-                          <ChevronDown className="ml-1 h-3 w-3" />
-                        ))}
-                    </Button>
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {processedData.map((row, index) => (
-                <TableRow key={index} className="hover:bg-muted/30">
-                  {columns.map((column) => (
-                    <TableCell key={column} className="max-w-48">
-                      <div className="truncate" title={formatCellValue(row[column])}>
-                        {formatCellValue(row[column])}
-                      </div>
-                    </TableCell>
-                  ))}
-                </TableRow>
+    <div className="overflow-x-auto">
+      <table className="min-w-full border-collapse border border-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="border border-gray-300 px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">
+              Response #
+            </th>
+            {displayColumns.map(column => (
+              <th
+                key={column.key}
+                className="border border-gray-300 px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider min-w-[200px]"
+                title={column.key} // Show field name on hover
+              >
+                <div className="space-y-1">
+                  <div className="font-semibold">{column.label}</div>
+                  <div className="text-xs text-gray-500 normal-case">
+                    {column.key}
+                  </div>
+                  {column.type !== 'text' && (
+                    <div className="text-xs text-blue-600 normal-case">
+                      {column.type}
+                    </div>
+                  )}
+                </div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {tableData.map((row, index) => (
+            <tr key={index} className="hover:bg-gray-50">
+              <td className="border border-gray-300 px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
+                {index + 1}
+              </td>
+              {displayColumns.map(column => (
+                <td
+                  key={column.key}
+                  className="border border-gray-300 px-3 py-2 text-sm text-gray-900 max-w-xs"
+                >
+                  <div className="break-words">{row[column.key]}</div>
+                </td>
               ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-
-      {processedData.length === 0 && searchTerm && (
-        <div className="text-center py-8 text-muted-foreground">No results found for "{searchTerm}"</div>
-      )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
-  )
+  );
+}
+
+export function CompactDataTable({ data, questions }: DataTableProps) {
+  // Interface for question answers to ensure no null values
+  interface QuestionAnswer {
+    question: string;
+    answer: string;
+    fieldName: string;
+  }
+
+  const processedData = useMemo(() => {
+    if (!data.length) return [];
+
+    // Get unique field names in the order they appear in the first record (JSON order)
+    const firstRecord = data[0] || {};
+    const orderedFields = Object.keys(firstRecord).filter(
+      key =>
+        !key.startsWith('_') &&
+        !key.startsWith('formhub/') &&
+        !key.startsWith('meta/') &&
+        key !== '__version__'
+    );
+
+    return data.map((record, index) => {
+      const questionAnswers: QuestionAnswer[] = orderedFields
+        .map(fieldName => {
+          // Normalize fieldName to match Excel (remove group prefix)
+          const normalizedField = fieldName.split('/').pop() || fieldName;
+          const question = questions.find(
+            q => q.name === normalizedField || q.name === fieldName
+          );
+          if (!question) return null; // Skip if no matching question in Excel
+
+          let displayValue = String(record[fieldName] ?? '-');
+
+          // Convert choice values to labels if available
+          if (record[fieldName] && question.choices) {
+            const choice = question.choices.find(c => c.name === record[fieldName]);
+            if (choice) {
+              displayValue = choice.label;
+            }
+          }
+
+          return {
+            question: question.label || 'Unknown Question',
+            answer: displayValue,
+            fieldName
+          };
+        })
+        .filter((qa): qa is QuestionAnswer => qa !== null) // Type guard to exclude null
+        .sort((a, b) => {
+          // Put tool ID fields first, preserve JSON order for others
+          if (a.fieldName.includes('toolid') || a.fieldName.includes('Q_13110000')) return -1;
+          if (b.fieldName.includes('toolid') || b.fieldName.includes('Q_13110000')) return 1;
+          return 0; // Preserve original JSON order
+        });
+
+      return {
+        responseNumber: index + 1,
+        questionAnswers
+      };
+    });
+  }, [data, questions]);
+
+  if (!processedData.length) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No data available
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {processedData.map(response => (
+        <div key={response.responseNumber} className="border rounded-lg p-4">
+          <h4 className="font-semibold text-lg mb-4 text-blue-600">
+            Response #{response.responseNumber}
+          </h4>
+          <div className="grid gap-3">
+            {response.questionAnswers.map((qa, qaIndex) => (
+              <div
+                key={qaIndex}
+                className="grid grid-cols-1 md:grid-cols-3 gap-2 py-2 border-b border-gray-100 last:border-b-0"
+              >
+                <div className="font-medium text-gray-700">{qa.question}</div>
+                <div className="text-gray-900 md:col-span-2">{qa.answer}</div>
+                <div className="text-xs text-gray-500 md:col-span-3">
+                  Field: {qa.fieldName}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
