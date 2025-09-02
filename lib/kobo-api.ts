@@ -127,7 +127,7 @@ async getSurveyData(toolId: string, maturityLevel: "advanced" | "early"): Promis
       const data = await this.fetchData(formId);
       
       // Find matching records
-      const matchingRecords = [];
+    const matchingRecords = [];
       for (const record of data.results) {
         let recordToolId = "";
         
@@ -137,6 +137,8 @@ async getSurveyData(toolId: string, maturityLevel: "advanced" | "early"): Promis
           recordToolId = String(record["group_requester/Q_13110000"]).trim();
         } else if (record["group_individualinfo/Q_13110000"]) {
           recordToolId = String(record["group_individualinfo/Q_13110000"]).trim();
+        } else if (record["group_intro/Q_13110000"]) {
+          recordToolId = String(record["group_intro/Q_13110000"]).trim();
         } else if (record["Q_13110000"]) {
           recordToolId = String(record["Q_13110000"]).trim();
         }
