@@ -88,7 +88,7 @@ export class KoboApiClient {
           
           const maturity = String(record[KOBO_CONFIG.MATURITY_FIELD] || "").toLowerCase().trim();
           
-          if (maturity === "advanced" || maturity === "advance") {
+          if (maturity === "advanced" || maturity === "advance" || maturity === "advance_stage") {
             return "advanced";
           } else if (maturity === "early" || maturity === "early_stage") {
             return "early";
@@ -99,7 +99,7 @@ export class KoboApiClient {
       }
 
       console.log("Client: No matching record found.");
-      throw new Error(`Tool ID "${toolId}" not found in the main form`);
+      throw new Error(`Tool ID "${toolId}" not found`);
     } catch (error) {
       throw new Error(`Failed to fetch main form data: ${error instanceof Error ? error.message : error}`);
     }
