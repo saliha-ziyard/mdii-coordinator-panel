@@ -108,11 +108,11 @@ export function DataTable({ data, questions }: DataTableProps) {
                   <div className="text-xs text-gray-500 normal-case">
                     {column.key}
                   </div>
-                  {column.type !== 'text' && (
+                  {/* {column.type !== 'text' && (
                     <div className="text-xs text-blue-600 normal-case">
                       {column.type}
                     </div>
-                  )}
+                  )} */}
                 </div>
               </th>
             ))}
