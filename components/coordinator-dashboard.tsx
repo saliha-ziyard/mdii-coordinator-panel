@@ -88,8 +88,8 @@ export function CoordinatorDashboard() {
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-card-foreground">Kobo Coordinator Panel</h1>
-        <p className="text-muted-foreground">Enter a Tool ID to view user responses across different maturity levels</p>
+        <h1 className="text-3xl font-bold text-card-foreground">MDII Coordinator Panel</h1>
+        <p className="text-muted-foreground">Enter a Tool ID to view user responses across different tools</p>
       </div>
 
       {/* Tool ID Input */}
