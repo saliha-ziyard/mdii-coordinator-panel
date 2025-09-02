@@ -93,7 +93,7 @@ export class KoboApiClient {
           } else if (maturity === "early" || maturity === "early_stage") {
             return "early";
           } else {
-            throw new Error(`Invalid maturity level: ${maturity}. Expected: advanced, advance, early, or early_stage`);
+            throw new Error(`Invalid maturity level: ${maturity ||"not given"}. `);
           }
         }
       }
