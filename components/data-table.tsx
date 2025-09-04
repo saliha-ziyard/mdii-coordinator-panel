@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Search, Eye, } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search, Eye, Users, User } from 'lucide-react';
 
 // Interface for QuestionLabel (unchanged)
 export interface QuestionLabel {
@@ -22,16 +22,77 @@ interface DisplayColumn {
   choices: { name: string; label: string }[];
 }
 
+// Interface for demographic statistics
+interface DemographicStats {
+  genderStats: { [key: string]: number };
+  ageStats: { [key: string]: number };
+  totalResponses: number;
+}
+
 export function DataTable({ data, questions }: DataTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{column: string, direction: 'asc' | 'desc'} | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set());
   const [showColumnSelector, setShowColumnSelector] = useState(false);
+  const [showDemographics, setShowDemographics] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const { displayColumns, tableData } = useMemo(() => {
-    if (!data.length) return { displayColumns: [], tableData: [] };
+  // Function to determine user type and maturity level based on available fields
+  const getUserTypeAndMaturity = (record: any): { userType: 'direct' | 'indirect', maturity: 'early' | 'advanced' } => {
+    // Check for direct user fields
+    if (record['group_individualinfo/Q_32120000'] !== undefined || record['group_intro_001/Q_32120000'] !== undefined) {
+      // Direct user
+      if (record['group_individualinfo/Q_32120000'] !== undefined) {
+        return { userType: 'direct', maturity: 'early' };
+      } else {
+        return { userType: 'direct', maturity: 'advanced' };
+      }
+    }
+    // Check for indirect user fields
+    else if (record['group_individualinfo/Q_42120000'] !== undefined || record['Q_individualinfo/Q_42120000'] !== undefined) {
+      // Indirect user
+      if (record['group_individualinfo/Q_42120000'] !== undefined) {
+        return { userType: 'indirect', maturity: 'early' };
+      } else {
+        return { userType: 'indirect', maturity: 'advanced' };
+      }
+    }
+    
+    // Default fallback
+    return { userType: 'direct', maturity: 'early' };
+  };
+
+  // Function to get gender and age field names based on user type and maturity
+  const getDemographicFields = (userType: 'direct' | 'indirect', maturity: 'early' | 'advanced') => {
+    const fieldMap = {
+      direct: {
+        early: {
+          gender: 'group_individualinfo/Q_32120000',
+          age: 'group_individualinfo/Q_32110000'
+        },
+        advanced: {
+          gender: 'group_intro_001/Q_32120000',
+          age: 'group_intro_001/Q_32110000'
+        }
+      },
+      indirect: {
+        early: {
+          gender: 'group_individualinfo/Q_42120000',
+          age: 'group_individualinfo/Q_42110000'
+        },
+        advanced: {
+          gender: 'Q_individualinfo/Q_42120000',
+          age: 'Q_individualinfo/Q_32110000'
+        }
+      }
+    };
+    
+    return fieldMap[userType][maturity];
+  };
+
+  const { displayColumns, tableData, demographicStats } = useMemo(() => {
+    if (!data.length) return { displayColumns: [], tableData: [], demographicStats: { genderStats: {}, ageStats: {}, totalResponses: 0 } };
 
     // Get unique field names in the order they appear in the first record (JSON order)
     const firstRecord = data[0] || {};
@@ -71,6 +132,102 @@ export function DataTable({ data, questions }: DataTableProps) {
     if (visibleColumns.size === 0) {
       setVisibleColumns(new Set(displayColumns.map(col => col.key)));
     }
+
+    // Calculate demographic statistics
+    const genderStats: { [key: string]: number } = {};
+    const ageStats: { [key: string]: number } = {};
+
+    data.forEach(record => {
+      const { userType, maturity } = getUserTypeAndMaturity(record);
+      const fields = getDemographicFields(userType, maturity);
+      
+      // Log demographic field extraction for debugging
+      if (record === data[0]) {
+        console.log('Detected user type:', userType, 'maturity:', maturity);
+        console.log('Looking for fields:', fields);
+        console.log('Gender field value:', record[fields.gender]);
+        console.log('Age field value:', record[fields.age]);
+      }
+      
+      // Try multiple possible field names for gender
+      const possibleGenderFields = [
+        fields.gender,
+        'group_individualinfo/Q_32120000',
+        'group_intro_001/Q_32120000', 
+        'group_individualinfo/Q_42120000',
+        'Q_individualinfo/Q_42120000',
+        // Also try without group prefixes
+        'Q_32120000',
+        'Q_42120000'
+      ];
+      
+      let genderValue = null;
+      let genderFieldUsed = null;
+      for (const field of possibleGenderFields) {
+        if (record[field] !== undefined && record[field] !== null && record[field] !== '') {
+          genderValue = record[field];
+          genderFieldUsed = field;
+          break;
+        }
+      }
+      
+      // Try multiple possible field names for age
+      const possibleAgeFields = [
+        fields.age,
+        'group_individualinfo/Q_32110000',
+        'group_intro_001/Q_32110000',
+        'group_individualinfo/Q_42110000', 
+        'Q_individualinfo/Q_32110000',
+        // Also try without group prefixes
+        'Q_32110000',
+        'Q_42110000'
+      ];
+      
+      let ageValue = null;
+      let ageFieldUsed = null;
+      for (const field of possibleAgeFields) {
+        if (record[field] !== undefined && record[field] !== null && record[field] !== '') {
+          ageValue = record[field];
+          ageFieldUsed = field;
+          break;
+        }
+      }
+      
+      if (record === data[0]) {
+        console.log('Found gender:', genderValue, 'from field:', genderFieldUsed);
+        console.log('Found age:', ageValue, 'from field:', ageFieldUsed);
+      }
+      
+      // Extract gender
+      if (genderValue) {
+        // Find the gender choice label if available
+        const genderColumn = displayColumns.find(col => col.key === genderFieldUsed);
+        let genderLabel = genderValue;
+        if (genderColumn && genderColumn.choices.length > 0) {
+          const choice = genderColumn.choices.find(c => c.name === genderValue);
+          if (choice) {
+            genderLabel = choice.label;
+          }
+        }
+        // If no choice found, use the raw value
+        genderStats[genderLabel] = (genderStats[genderLabel] || 0) + 1;
+      }
+      
+      // Extract age
+      if (ageValue) {
+        // Find the age choice label if available
+        const ageColumn = displayColumns.find(col => col.key === ageFieldUsed);
+        let ageLabel = ageValue;
+        if (ageColumn && ageColumn.choices.length > 0) {
+          const choice = ageColumn.choices.find(c => c.name === ageValue);
+          if (choice) {
+            ageLabel = choice.label;
+          }
+        }
+        // If no choice found, use the raw value
+        ageStats[ageLabel] = (ageStats[ageLabel] || 0) + 1;
+      }
+    });
 
     // Process table data with choice labels
     const tableData = data.map(record => {
@@ -112,7 +269,13 @@ export function DataTable({ data, questions }: DataTableProps) {
       return processedRecord;
     });
 
-    return { displayColumns, tableData };
+    const demographicStats: DemographicStats = {
+      genderStats,
+      ageStats,
+      totalResponses: data.length
+    };
+
+    return { displayColumns, tableData, demographicStats };
   }, [data, questions, visibleColumns.size]);
 
   // Filter and sort data
@@ -191,46 +354,123 @@ export function DataTable({ data, questions }: DataTableProps) {
             />
           </div>
 
-          <div className='flex justify-center items-center'>
-          {/* Column Selector */}
-          <div className="relative">
-            <button
-              onClick={() => setShowColumnSelector(!showColumnSelector)}
-              className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <Eye className="h-4 w-4 " />
-              Columns
-              <ChevronDown className={`h-4 w-4 transition-transform ${showColumnSelector ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {showColumnSelector && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowColumnSelector(false)} />
-                <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded shadow-lg z-20 max-h-64 overflow-y-auto">
-                  <div className="p-2 border-b border-gray-100">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Select Columns</div>
-                  </div>
-                  {displayColumns.map(col => (
-                    <label key={col.key} className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={visibleColumns.has(col.key)}
-                        onChange={() => toggleColumnVisibility(col.key)}
-                        className="mr-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700">{col.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          <div className='flex justify-center items-center gap-3'>
+            {/* Demographics Button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowDemographics(!showDemographics)}
+                className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <Users className="h-4 w-4" />
+                Demographics
+                <ChevronDown className={`h-4 w-4 transition-transform ${showDemographics ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {showDemographics && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowDemographics(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-80 bg-white border border-gray-200 rounded shadow-lg z-20">
+                    <div className="p-4">
+                      <div className="text-sm font-medium text-gray-900 mb-3">Demographics Overview</div>
+                      
+                      {/* Gender Statistics */}
+                      {Object.keys(demographicStats.genderStats).length > 0 && (
+                        <div className="mb-4">
+                          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            Gender Distribution
+                          </div>
+                          <div className="space-y-1">
+                            {Object.entries(demographicStats.genderStats).map(([gender, count]) => (
+                              <div key={gender} className="flex justify-between items-center text-sm">
+                                <span className="text-gray-700">{gender}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900">{count}</span>
+                                  <span className="text-xs text-gray-500">
+                                    ({((count / demographicStats.totalResponses) * 100).toFixed(1)}%)
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
-          {/* Results Count */}
-          <div className="inline-flex items-center px-4 py-2.5 rounded text-xs font-medium bg-blue-100 text-blue-800 ml-5">
-            {filteredAndSortedData.length}{" "}
-            {filteredAndSortedData.length === 1 ? "record" : "records"}
-          </div>
+                      {/* Age Statistics */}
+                      {Object.keys(demographicStats.ageStats).length > 0 && (
+                        <div>
+                          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            Age Group Distribution
+                          </div>
+                          <div className="space-y-1">
+                            {Object.entries(demographicStats.ageStats)
+                              .sort(([a], [b]) => a.localeCompare(b)) // Sort age groups
+                              .map(([ageGroup, count]) => (
+                              <div key={ageGroup} className="flex justify-between items-center text-sm">
+                                <span className="text-gray-700">{ageGroup}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900">{count}</span>
+                                  <span className="text-xs text-gray-500">
+                                    ({((count / demographicStats.totalResponses) * 100).toFixed(1)}%)
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {Object.keys(demographicStats.genderStats).length === 0 && Object.keys(demographicStats.ageStats).length === 0 && (
+                        <div className="text-center py-4 text-gray-500 text-sm">
+                          No demographic data available
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Column Selector */}
+            <div className="relative">
+              <button
+                onClick={() => setShowColumnSelector(!showColumnSelector)}
+                className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <Eye className="h-4 w-4 " />
+                Columns
+                <ChevronDown className={`h-4 w-4 transition-transform ${showColumnSelector ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {showColumnSelector && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowColumnSelector(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded shadow-lg z-20 max-h-64 overflow-y-auto">
+                    <div className="p-2 border-b border-gray-100">
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Select Columns</div>
+                    </div>
+                    {displayColumns.map(col => (
+                      <label key={col.key} className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns.has(col.key)}
+                          onChange={() => toggleColumnVisibility(col.key)}
+                          className="mr-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{col.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Results Count */}
+            <div className="inline-flex items-center px-4 py-2.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+              {filteredAndSortedData.length}{" "}
+              {filteredAndSortedData.length === 1 ? "record" : "records"}
+            </div>
           </div>
         </div>
       </div>
