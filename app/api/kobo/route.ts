@@ -1,4 +1,4 @@
-// Create this file: app/api/kobo/route.ts
+// app/api/kobo/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 
 const API_TOKEN = "fc37a9329918014ef595b183adcef745a4beb217"
@@ -24,10 +24,10 @@ export async function GET(request: NextRequest) {
         "Content-Type": "application/json",
       },
       // Add timeout
-      signal: AbortSignal.timeout(30000), // 30 seconds
+      signal: AbortSignal.timeout(45000), // Increased to 45 seconds for multiple form fetches
     })
 
-    console.log(`Server: Status: ${response.status}`)
+    console.log(`Server: Status: ${response.status} for form: ${formId}`)
 
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`
@@ -63,11 +63,15 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error(`Server: Network error:`, error)
+    console.error(`Server: Network error for form ${formId}:`, error)
     
     let errorMessage = 'Network error occurred'
     if (error instanceof Error) {
-      errorMessage = `Network error: ${error.message}`
+      if (error.name === 'AbortError') {
+        errorMessage = 'Request timed out'
+      } else {
+        errorMessage = `Network error: ${error.message}`
+      }
     }
     
     return NextResponse.json({ error: errorMessage }, { status: 500 })
