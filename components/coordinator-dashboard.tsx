@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Search, Users, FileText, AlertCircle, CheckCircle, XCircle, UserCheck, Briefcase, GraduationCap } from "lucide-react"
+import { Loader2, Search, Users, FileText, AlertCircle, CheckCircle, XCircle } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import { KoboApiClient, type KoboFormData } from "@/lib/kobo-api"
 
@@ -28,7 +28,6 @@ const DOMAIN_CODE_MAPPING: { [key: string]: string } = {
   'country_expert': 'Country Expert',
   'data': 'Data',
   'econ': 'Economics',
-  // 'economics': 'Economics', 
   'gesi': 'Gender Equity and Social Inclusion',
   'hcd': 'Human-Centered Design',
   'ict': 'Information and Communication Technologies'
@@ -147,20 +146,18 @@ export function CoordinatorDashboard() {
 
         console.log(`Domain Experts: Found ${matchingRecords.length} matching records`)
 
-        // Parse domain categories from group_individualinfo/Q_22300000
+        // Parse domain categories - different field names for different maturity levels
         const categorySubmissions = new Map<string, number>()
         
         matchingRecords.forEach(record => {
-          // Get the expertise string like "ce data econ gesi hcd ict"
+          // Get the expertise string based on maturity level
           const expertiseString = String(
-            // record["group_individualinfo/Q_22300000"] || 
-            record["group_individual/Q_22300000"] ||
-            record["group_intro_001/Q_22300000"] ||
-            // record["Q_22300000"] ||
-            ""
+            maturityLevel === 'early' 
+              ? record["group_individualinfo/Q_22300000"] || ""
+              : record["group_intro_001/Q_22300000"] || ""
           ).trim().toLowerCase()
           
-          console.log(`Found expertise string: '${expertiseString}'`)
+          console.log(`Found expertise string for ${maturityLevel}: '${expertiseString}'`)
           
           if (expertiseString) {
             // Split by spaces and map codes to full names
@@ -249,226 +246,242 @@ export function CoordinatorDashboard() {
   }
 
   const getStatusIcon = (submitted: boolean, hasError?: boolean) => {
-    if (hasError) return <XCircle className="h-4 w-4 text-destructive" />
+    if (hasError) return <XCircle className="h-4 w-4 text-red-500" />
     return submitted ? 
       <CheckCircle className="h-4 w-4 text-green-600" /> : 
-      <XCircle className="h-4 w-4 text-red-600" />
+      <XCircle className="h-4 w-4 text-gray-400" />
   }
 
-  const getStatusBadge = (submitted: boolean, count: number, hasError?: boolean) => {
-    if (hasError) return <Badge variant="destructive">Error</Badge>
-    return submitted ? 
-      <Badge variant="default" className="bg-green-600">{count} submitted</Badge> : 
-      <Badge variant="secondary">Not submitted</Badge>
+  const getStatusText = (submitted: boolean, hasError?: boolean) => {
+    if (hasError) return "Error"
+    return submitted ? "Submitted" : "Not Submitted"
+  }
+
+  const getStatusClass = (submitted: boolean, hasError?: boolean) => {
+    if (hasError) return "text-red-600"
+    return submitted ? "text-green-600" : "text-gray-500"
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-card-foreground">MDII Coordinator Panel</h1>
-        <p className="text-muted-foreground">Comprehensive tracking of all submissions for a Tool ID</p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-2">MDII Coordinator Panel</h1>
+          <p className="text-gray-600">Track and manage all form submissions for Tool IDs</p>
+        </div>
 
-      {/* Tool ID Input */}
-      <Card className="max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Tool ID Search
-          </CardTitle>
-          <CardDescription>Enter the Tool ID to fetch and display all related form submissions</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter Tool ID (e.g., MDII-test1-310725)..."
-              value={toolId}
-              onChange={(e) => setToolId(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="flex-1"
-            />
-            <Button onClick={handleSearch} disabled={loading} className="px-6">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+        {/* Search Section */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Tool ID Search</h2>
+          
+          <div className="flex gap-3 mb-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Enter Tool ID (e.g., MDII-test1-310725)"
+                value={toolId}
+                onChange={(e) => setToolId(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="h-10"
+              />
+            </div>
+            <Button 
+              onClick={handleSearch} 
+              disabled={loading}
+              className="h-10 px-6 cursor-pointer"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
+              Search
             </Button>
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 text-destructive text-sm">
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
               <AlertCircle className="h-4 w-4" />
               {error}
             </div>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Maturity Level Display */}
-      {maturityLevel && (
-        <div className="text-center">
-          <Badge variant="secondary" className="text-lg px-4 py-2">
-            Maturity Level: {maturityLevel.charAt(0).toUpperCase() + maturityLevel.slice(1)}
-          </Badge>
+          {maturityLevel && (
+            <div className="mt-4">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                Maturity Level: {maturityLevel.charAt(0).toUpperCase() + maturityLevel.slice(1)}
+              </span>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Innovators Status */}
-      {overallStatus.innovators.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Briefcase className="h-5 w-5" />
-              Innovators Team Status
-            </CardTitle>
-            <CardDescription>Leadership, Technical Lead, and Project Manager submissions</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {overallStatus.loading ? (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Checking innovators status...
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {overallStatus.innovators.map((innovator) => (
-                  <div key={innovator.role} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(innovator.submitted, !!innovator.error)}
-                      <span className="font-medium">{innovator.role}</span>
+        {/* Team Status Section */}
+        {(overallStatus.innovators.length > 0 || overallStatus.domainExperts.length > 0) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            
+            {/* Innovators Team */}
+            {overallStatus.innovators.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900">Innovators Team</h3>
+                  <p className="text-sm text-gray-600">Leadership, Technical Lead, and Project Manager</p>
+                </div>
+                <div className="p-6">
+                  {overallStatus.loading ? (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Checking status...
                     </div>
-                    {getStatusBadge(innovator.submitted, innovator.submissionCount, !!innovator.error)}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Domain Experts Status */}
-      {overallStatus.domainExperts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <GraduationCap className="h-5 w-5" />
-              Domain Experts Status ({maturityLevel?.charAt(0).toUpperCase()}{maturityLevel?.slice(1)})
-            </CardTitle>
-            <CardDescription>Expert submissions by domain category</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {overallStatus.loading ? (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Checking domain experts status...
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {overallStatus.domainExperts.map((expert) => (
-                  <div key={expert.category} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(expert.submitted)}
-                      <span className="font-medium text-sm">{expert.category}</span>
+                  ) : (
+                    <div className="space-y-3">
+                      {overallStatus.innovators.map((innovator) => (
+                        <div key={innovator.role} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+                          <div className="flex items-center gap-3">
+                            {getStatusIcon(innovator.submitted, !!innovator.error)}
+                            <span className="text-sm font-medium text-gray-900">{innovator.role}</span>
+                          </div>
+                          <span className={`text-sm font-medium ${getStatusClass(innovator.submitted, !!innovator.error)}`}>
+                            {getStatusText(innovator.submitted, !!innovator.error)}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                    {getStatusBadge(expert.submitted, expert.submissionCount)}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* User Survey Data Tables */}
-      {formData.length > 0 && (
-        <div className="space-y-6">
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold mb-2">User Survey Responses</h2>
-            <p className="text-muted-foreground">Direct and Indirect user feedback for the tool</p>
-          </div>
-          
-          {formData.map((form, index) => (
-            <Card key={index}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {form.userType === "usertype3" ? <Users className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
-                  {form.userType === "usertype3" ? "UserType III (Direct Users)" : "UserType IV (Indirect Users)"}
-                  <Badge variant="outline">
-                    {form.maturityLevel} - {form.data.length} responses
-                  </Badge>
-                  {form.error && (
-                    <Badge variant="destructive">
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                      Error
-                    </Badge>
                   )}
-                </CardTitle>
-                <CardDescription>
-                  Form ID: {form.formId}
-                  {form.error && <span className="text-destructive ml-2">- {form.error}</span>}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {form.data.length > 0 ? (
-                  <DataTable data={form.data} questions={form.questions || []} />
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {form.error ? "Failed to load data" : "No matching responses found for this tool ID"}
+                </div>
+              </div>
+            )}
+
+            {/* Domain Experts */}
+            {overallStatus.domainExperts.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900">Domain Experts</h3>
+                  <p className="text-sm text-gray-600">Expert submissions by domain ({maturityLevel})</p>
+                </div>
+                <div className="p-6">
+                  {overallStatus.loading ? (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Checking status...
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {overallStatus.domainExperts.map((expert) => (
+                        <div key={expert.category} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+                          <div className="flex items-center gap-3">
+                            {getStatusIcon(expert.submitted)}
+                            <span className="text-sm text-gray-900">{expert.category}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-medium ${getStatusClass(expert.submitted)}`}>
+                              {getStatusText(expert.submitted)}
+                            </span>
+                            {expert.submitted && (
+                              <span className="text-xs text-gray-500">({expert.submissionCount})</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* User Survey Data */}
+        {formData.length > 0 && (
+          <div className="space-y-6">
+            <div className="mb-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-2">User Survey Responses</h2>
+              <p className="text-gray-600">Direct and Indirect user feedback</p>
+            </div>
+            
+            {formData.map((form, index) => (
+              <div key={index} className="bg-white border border-gray-200 rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">
+                        {form.userType === "usertype3" ? "Direct Users" : "Indirect Users"}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Form ID: {form.formId} • {form.data.length} responses
+                        {form.error && <span className="text-red-600"> • Error: {form.error}</span>}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {form.error && <AlertCircle className="h-5 w-5 text-red-500" />}
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                </div>
+                <div className="p-6">
+                  {form.data.length > 0 ? (
+                    <DataTable data={form.data} questions={form.questions || []} />
+                  ) : (
+                    <div className="text-center py-12">
+                      <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-700 mb-2">
+                        {form.error ? "Failed to load data" : "No matching responses"}
+                      </h3>
+                      <p className="text-gray-500">
+                        {form.error ? "Please try again later" : "No responses found for this tool ID"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-      {/* Loading State */}
-      {loading && (
-        <div className="text-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Fetching comprehensive data from all Kobo forms...</p>
-        </div>
-      )}
+        {/* Loading State */}
+        {loading && (
+          <div className="bg-white border border-gray-200 rounded-lg">
+            <div className="text-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Data</h3>
+              <p className="text-gray-600">Fetching comprehensive data from all forms...</p>
+            </div>
+          </div>
+        )}
 
-      {/* Summary Stats */}
-      {(overallStatus.innovators.length > 0 || overallStatus.domainExperts.length > 0 || formData.length > 0) && (
-        <Card className="bg-muted/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5" />
-              Submission Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-primary">
-                  {overallStatus.innovators.filter(i => i.submitted).length}/{overallStatus.innovators.length}
+        {/* Summary Statistics */}
+        {(overallStatus.innovators.length > 0 || overallStatus.domainExperts.length > 0 || formData.length > 0) && (
+          <div className="bg-white border border-gray-200 rounded-lg mt-6">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Summary</h3>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+                <div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-1">
+                    {overallStatus.innovators.filter(i => i.submitted).length}/{overallStatus.innovators.length}
+                  </div>
+                  <div className="text-sm text-gray-600">Innovators</div>
                 </div>
-                <div className="text-sm text-muted-foreground">Innovators</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-primary">
-                  {overallStatus.domainExperts.filter(e => e.submitted).length}/{overallStatus.domainExperts.length}
+                <div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-1">
+                    {overallStatus.domainExperts.filter(e => e.submitted).length}/{overallStatus.domainExperts.length}
+                  </div>
+                  <div className="text-sm text-gray-600">Domain Experts</div>
                 </div>
-                <div className="text-sm text-muted-foreground">Domain Experts</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-primary">
-                  {formData.reduce((sum, form) => sum + form.data.length, 0)}
+                <div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-1">
+                    {formData.reduce((sum, form) => sum + form.data.length, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">User Responses</div>
                 </div>
-                <div className="text-sm text-muted-foreground">User Responses</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-primary">
-                  {overallStatus.innovators.filter(i => i.submitted).length + 
-                   overallStatus.domainExperts.filter(e => e.submitted).length + 
-                   formData.reduce((sum, form) => sum + form.data.length, 0)}
+                <div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-1">
+                    {overallStatus.innovators.filter(i => i.submitted).length + 
+                     overallStatus.domainExperts.filter(e => e.submitted).length + 
+                     formData.reduce((sum, form) => sum + form.data.length, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Submissions</div>
                 </div>
-                <div className="text-sm text-muted-foreground">Total Submissions</div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
