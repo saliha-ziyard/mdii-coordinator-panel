@@ -450,7 +450,7 @@ export function CoordinatorDashboard() {
               <h3 className="text-lg font-medium text-gray-900">Summary</h3>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
                 <div>
                   <div className="text-2xl font-semibold text-gray-900 mb-1">
                     {overallStatus.innovators.filter(i => i.submitted).length}/{overallStatus.innovators.length}
@@ -464,13 +464,13 @@ export function CoordinatorDashboard() {
                   <div className="text-sm text-gray-600">Domain Experts</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-semibold text-gray-900 mb-1">
-                    {formData
-                      .filter(form => form.userType === "usertype3")
-                      .reduce((sum, form) => sum + form.data.length, 0)}
-                  </div>
-                  <div className="text-sm text-gray-600">Direct Users</div>
+                <div className="text-2xl font-semibold text-gray-900 mb-1">
+                  {formData
+                    .reduce((sum, form) => sum + form.data.length, 0)}
                 </div>
+                <div className="text-sm text-gray-600">Total Users</div>
+                </div>
+
                 <div>
                   <div className="text-2xl font-semibold text-gray-900 mb-1">
                     {formData
@@ -479,6 +479,16 @@ export function CoordinatorDashboard() {
                   </div>
                   <div className="text-sm text-gray-600">Indirect Users</div>
                 </div>
+
+                <div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-1">
+                    {formData
+                      .filter(form => form.userType === "usertype3")
+                      .reduce((sum, form) => sum + form.data.length, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Direct Users</div>
+                </div>
+
               </div>
             </div>
           </div>
