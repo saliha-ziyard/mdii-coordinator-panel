@@ -463,22 +463,6 @@ export function CoordinatorDashboard() {
                   </div>
                   <div className="text-sm text-gray-600">Domain Experts</div>
                 </div>
-                <div>
-                <div className="text-2xl font-semibold text-gray-900 mb-1">
-                  {formData
-                    .reduce((sum, form) => sum + form.data.length, 0)}
-                </div>
-                <div className="text-sm text-gray-600">Total Users</div>
-                </div>
-
-                <div>
-                  <div className="text-2xl font-semibold text-gray-900 mb-1">
-                    {formData
-                      .filter(form => form.userType !== "usertype3")
-                      .reduce((sum, form) => sum + form.data.length, 0)}
-                  </div>
-                  <div className="text-sm text-gray-600">Indirect Users</div>
-                </div>
 
                 <div>
                   <div className="text-2xl font-semibold text-gray-900 mb-1">
@@ -487,6 +471,21 @@ export function CoordinatorDashboard() {
                       .reduce((sum, form) => sum + form.data.length, 0)}
                   </div>
                   <div className="text-sm text-gray-600">Direct Users</div>
+                </div>
+                  <div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-1">
+                    {formData
+                      .filter(form => form.userType !== "usertype3")
+                      .reduce((sum, form) => sum + form.data.length, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Indirect Users</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-1">
+                  {formData
+                    .reduce((sum, form) => sum + form.data.length, 0)}
+                  </div>
+                <div className="text-sm text-gray-600">Total Users</div>
                 </div>
 
               </div>
