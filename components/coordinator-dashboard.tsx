@@ -267,7 +267,7 @@ export function CoordinatorDashboard() {
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-2">MDII Coordinator Panel</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 mb-2"><span style={{ color: "#591fd5" }}>MDII</span> <span style={{ color: "#cbced4" }}>|</span> Coordinator Panel</h1>
           <p className="text-gray-600">Track and manage all form submissions for Tool IDs</p>
         </div>
 
@@ -465,17 +465,19 @@ export function CoordinatorDashboard() {
                 </div>
                 <div>
                   <div className="text-2xl font-semibold text-gray-900 mb-1">
-                    {formData.reduce((sum, form) => sum + form.data.length, 0)}
+                    {formData
+                      .filter(form => form.userType === "usertype3")
+                      .reduce((sum, form) => sum + form.data.length, 0)}
                   </div>
-                  <div className="text-sm text-gray-600">User Responses</div>
+                  <div className="text-sm text-gray-600">Direct Users</div>
                 </div>
                 <div>
                   <div className="text-2xl font-semibold text-gray-900 mb-1">
-                    {overallStatus.innovators.filter(i => i.submitted).length + 
-                     overallStatus.domainExperts.filter(e => e.submitted).length + 
-                     formData.reduce((sum, form) => sum + form.data.length, 0)}
+                    {formData
+                      .filter(form => form.userType !== "usertype3")
+                      .reduce((sum, form) => sum + form.data.length, 0)}
                   </div>
-                  <div className="text-sm text-gray-600">Total Submissions</div>
+                  <div className="text-sm text-gray-600">Indirect Users</div>
                 </div>
               </div>
             </div>
