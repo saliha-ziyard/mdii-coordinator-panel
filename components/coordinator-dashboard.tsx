@@ -275,25 +275,33 @@ export function CoordinatorDashboard() {
         <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">Tool ID Search</h2>
           
-          <div className="flex gap-3 mb-4">
-            <div className="flex-1">
-              <Input
-                placeholder="Enter Tool ID (e.g., MDII-test1-310725)"
-                value={toolId}
-                onChange={(e) => setToolId(e.target.value)}
-                onKeyPress={handleKeyPress}
-                className="h-10"
-              />
-            </div>
-            <Button 
-              onClick={handleSearch} 
-              disabled={loading}
-              className="h-10 px-6 cursor-pointer"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
-              Search
-            </Button>
-          </div>
+<div className="flex flex-col md:flex-row gap-3 mb-4">
+  {/* Input field */}
+  <div className="flex-1">
+    <Input
+      placeholder="Enter Tool ID (e.g., MDII-test1-310725)"
+      value={toolId}
+      onChange={(e) => setToolId(e.target.value)}
+      onKeyPress={handleKeyPress}
+      className="h-10 w-full"
+    />
+  </div>
+
+  {/* Search button */}
+  <Button 
+    onClick={handleSearch} 
+    disabled={loading}
+    className="h-10 px-6 cursor-pointer w-full md:w-auto"
+  >
+    {loading ? (
+      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+    ) : (
+      <Search className="h-4 w-4 mr-2" />
+    )}
+    Search
+  </Button>
+</div>
+
 
           {error && (
             <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
