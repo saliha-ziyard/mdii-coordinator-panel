@@ -93,15 +93,15 @@ export class KoboApiClient {
           } else if (maturity === "early" || maturity === "early_stage") {
             return "early";
           } else {
-            throw new Error(`Invalid maturity level: ${maturity ||"not given"}. `);
+            throw new Error(`Invalid maturity level. `);
           }
         }
       }
 
       console.log("Client: No matching record found.");
-      throw new Error(`Tool ID "${toolId}" not found`);
+      throw new Error(`Tool ID "${toolId}" not found.`);
     } catch (error) {
-      throw new Error(`Failed to fetch main form data: ${error instanceof Error ? error.message : error}`);
+      throw new Error(`Failed to fetch data - ${error instanceof Error ? error.message : error}`);
     }
   }
 
