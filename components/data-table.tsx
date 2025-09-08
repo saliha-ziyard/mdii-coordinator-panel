@@ -340,8 +340,143 @@ export function DataTable({ data, questions }: DataTableProps) {
   return (
     <div className="bg-white border border-gray-200 rounded">
       {/* Header Controls */}
-      <div className="border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
+      <div className="border-b border-gray-200 px-3 sm:px-4 py-3">
+        {/* Mobile Layout - Stack vertically */}
+        <div className="flex flex-col gap-3 sm:hidden">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search responses..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Demographics Button Row */}
+          <div className="relative">
+            <button
+              onClick={() => setShowDemographics(!showDemographics)}
+              className="flex w-full cursor-pointer items-center justify-center gap-2 px-3 py-2 text-xs border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <Users className="h-4 w-4" />
+              <span>Demographics</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showDemographics ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showDemographics && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowDemographics(false)} />
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-20">
+                  <div className="p-3">
+                    <div className="text-sm font-medium text-gray-900 mb-3">Demographics Overview</div>
+                    
+                    {/* Gender Statistics */}
+                    {Object.keys(demographicStats.genderStats).length > 0 && (
+                      <div className="mb-4">
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          Gender Distribution
+                        </div>
+                        <div className="space-y-1">
+                          {Object.entries(demographicStats.genderStats).map(([gender, count]) => (
+                            <div key={gender} className="flex justify-between items-center text-sm">
+                              <span className="text-gray-700 truncate mr-2">{gender}</span>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="font-medium text-gray-900">{count}</span>
+                                <span className="text-xs text-gray-500">
+                                  ({((count / demographicStats.totalResponses) * 100).toFixed(1)}%)
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Age Statistics */}
+                    {Object.keys(demographicStats.ageStats).length > 0 && (
+                      <div>
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          Age Group Distribution
+                        </div>
+                        <div className="space-y-1">
+                          {Object.entries(demographicStats.ageStats)
+                            .sort(([a], [b]) => a.localeCompare(b)) // Sort age groups
+                            .map(([ageGroup, count]) => (
+                            <div key={ageGroup} className="flex justify-between items-center text-sm">
+                              <span className="text-gray-700 truncate mr-2">{ageGroup}</span>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="font-medium text-gray-900">{count}</span>
+                                <span className="text-xs text-gray-500">
+                                  ({((count / demographicStats.totalResponses) * 100).toFixed(1)}%)
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {Object.keys(demographicStats.genderStats).length === 0 && Object.keys(demographicStats.ageStats).length === 0 && (
+                      <div className="text-center py-4 text-gray-500 text-sm">
+                        No demographic data available
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Columns Button Row */}
+          <div className="relative">
+            <button
+              onClick={() => setShowColumnSelector(!showColumnSelector)}
+              className="flex w-full cursor-pointer items-center justify-center gap-2 px-3 py-2 text-xs border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <Eye className="h-4 w-4" />
+              <span>Columns</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showColumnSelector ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showColumnSelector && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowColumnSelector(false)} />
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-20 max-h-48 overflow-y-auto">
+                  <div className="p-2 border-b border-gray-100">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Select Columns</div>
+                  </div>
+                  {displayColumns.map(col => (
+                    <label key={col.key} className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns.has(col.key)}
+                        onChange={() => toggleColumnVisibility(col.key)}
+                        className="mr-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+                      />
+                      <span className="text-xs text-gray-700 truncate">{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Results Count */}
+          <div className="flex justify-center">
+            <div className="inline-flex items-center px-3 py-1.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+              {filteredAndSortedData.length}{" "}
+              {filteredAndSortedData.length === 1 ? "record" : "records"}
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Layout - Keep horizontal */}
+        <div className="hidden sm:flex items-center justify-between gap-4">
           {/* Search */}
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -483,7 +618,7 @@ export function DataTable({ data, questions }: DataTableProps) {
               {visibleDisplayColumns.map(col => (
                 <th
                   key={col.key}
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort(col.key)}
                 >
                   <div className="flex items-center justify-between">
@@ -519,59 +654,129 @@ export function DataTable({ data, questions }: DataTableProps) {
       </div>
 
       {/* Footer with Pagination */}
-      <div className="border-t border-gray-200 px-4 py-3 flex items-center justify-between">
-        <div className="text-sm text-gray-700">
-          Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedData.length)} of {filteredAndSortedData.length} results
-        </div>
-        
-        {totalPages > 1 && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 text-sm border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`px-2 py-1 text-sm border rounded ${
-                      currentPage === pageNum
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            
-            <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 text-sm border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
+      <div className="border-t border-gray-200 px-3 sm:px-4 py-3">
+        {/* Mobile Pagination Layout */}
+        <div className="flex flex-col gap-3 sm:hidden">
+          {/* Results info */}
+          <div className="text-xs text-gray-700 text-center">
+            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedData.length)} of {filteredAndSortedData.length} results
           </div>
-        )}
+          
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex flex-col items-center gap-2">
+              {/* Page info */}
+              <div className="text-xs text-gray-500">
+                Page {currentPage} of {totalPages}
+              </div>
+              
+              {/* Navigation buttons */}
+              <div className="flex items-center justify-center gap-2 w-full">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                >
+                  Previous
+                </button>
+                
+                {/* Page numbers - show fewer on mobile */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 2) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 1) {
+                      pageNum = totalPages - 2 + i;
+                    } else {
+                      pageNum = currentPage - 1 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-2 py-1 text-xs border rounded min-w-[28px] ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Pagination Layout */}
+        <div className="hidden sm:flex items-center justify-between">
+          <div className="text-sm text-gray-700">
+            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedData.length)} of {filteredAndSortedData.length} results
+          </div>
+          
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-2 py-1 text-sm border rounded ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
