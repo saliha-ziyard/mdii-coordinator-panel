@@ -394,11 +394,61 @@ export function CoordinatorDashboard() {
           </div>
         )}
 
+          {/* Summary Statistics */}
+        {(overallStatus.innovators.length > 0 || overallStatus.domainExperts.length > 0 || formData.length > 0) && (
+          <div className="bg-white border border-gray-200 rounded-lg mt-6 mb-8">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Summary</h3>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
+                <div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-1">
+                    {overallStatus.innovators.filter(i => i.submitted).length}/{overallStatus.innovators.length}
+                  </div>
+                  <div className="text-sm text-gray-600">Innovators</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-1">
+                    {overallStatus.domainExperts.filter(e => e.submitted).length}/{overallStatus.domainExperts.length}
+                  </div>
+                  <div className="text-sm text-gray-600">Domain Experts</div>
+                </div>
+
+                <div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-1">
+                    {formData
+                      .filter(form => form.userType === "usertype3")
+                      .reduce((sum, form) => sum + form.data.length, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Direct Users</div>
+                </div>
+                  <div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-1">
+                    {formData
+                      .filter(form => form.userType !== "usertype3")
+                      .reduce((sum, form) => sum + form.data.length, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Indirect Users</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-1">
+                  {formData
+                    .reduce((sum, form) => sum + form.data.length, 0)}
+                  </div>
+                <div className="text-sm text-gray-600">Total Users</div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* User Survey Data */}
         {formData.length > 0 && (
           <div className="space-y-6">
             <div className="mb-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-2">User Survey Responses</h2>
+              <h2 className="text-lg font-medium text-gray-900">User Survey Responses</h2>
               <p className="text-gray-600">Direct and Indirect user feedback</p>
             </div>
             
@@ -451,55 +501,6 @@ export function CoordinatorDashboard() {
           </div>
         )}
 
-        {/* Summary Statistics */}
-        {(overallStatus.innovators.length > 0 || overallStatus.domainExperts.length > 0 || formData.length > 0) && (
-          <div className="bg-white border border-gray-200 rounded-lg mt-6">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Summary</h3>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
-                <div>
-                  <div className="text-2xl font-semibold text-gray-900 mb-1">
-                    {overallStatus.innovators.filter(i => i.submitted).length}/{overallStatus.innovators.length}
-                  </div>
-                  <div className="text-sm text-gray-600">Innovators</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-semibold text-gray-900 mb-1">
-                    {overallStatus.domainExperts.filter(e => e.submitted).length}/{overallStatus.domainExperts.length}
-                  </div>
-                  <div className="text-sm text-gray-600">Domain Experts</div>
-                </div>
-
-                <div>
-                  <div className="text-2xl font-semibold text-gray-900 mb-1">
-                    {formData
-                      .filter(form => form.userType === "usertype3")
-                      .reduce((sum, form) => sum + form.data.length, 0)}
-                  </div>
-                  <div className="text-sm text-gray-600">Direct Users</div>
-                </div>
-                  <div>
-                  <div className="text-2xl font-semibold text-gray-900 mb-1">
-                    {formData
-                      .filter(form => form.userType !== "usertype3")
-                      .reduce((sum, form) => sum + form.data.length, 0)}
-                  </div>
-                  <div className="text-sm text-gray-600">Indirect Users</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-semibold text-gray-900 mb-1">
-                  {formData
-                    .reduce((sum, form) => sum + form.data.length, 0)}
-                  </div>
-                <div className="text-sm text-gray-600">Total Users</div>
-                </div>
-
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
