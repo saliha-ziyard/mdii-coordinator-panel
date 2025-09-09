@@ -447,7 +447,7 @@ export function CoordinatorDashboard() {
         {/* User Survey Data */}
         {formData.length > 0 && (
           <div className="space-y-6">
-            <div className="mb-6">
+            <div className="mb-4">
               <h2 className="text-lg font-medium text-gray-900">User Survey Responses</h2>
               <p className="text-gray-600">Direct and Indirect user feedback</p>
             </div>
