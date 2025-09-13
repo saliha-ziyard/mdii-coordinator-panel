@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Search, Eye, Users, User } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 
 // Interface for QuestionLabel (unchanged)
 export interface QuestionLabel {
@@ -36,7 +37,17 @@ export function DataTable({ data, questions }: DataTableProps) {
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [showDemographics, setShowDemographics] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showDateFilter, setShowDateFilter] = useState(false);
   const itemsPerPage = 10;
+  const [dateFilter, setDateFilter] = useState<{
+    startDate: string;
+    endDate: string;
+    enabled: boolean;
+  }>({
+    startDate: '',
+    endDate: '',
+    enabled: false
+  });
 
   // Function to determine user type and maturity level based on available fields
   const getUserTypeAndMaturity = (record: any): { userType: 'direct' | 'indirect', maturity: 'early' | 'advanced' } => {
@@ -94,8 +105,44 @@ export function DataTable({ data, questions }: DataTableProps) {
   const { displayColumns, tableData, demographicStats } = useMemo(() => {
     if (!data.length) return { displayColumns: [], tableData: [], demographicStats: { genderStats: {}, ageStats: {}, totalResponses: 0 } };
 
+    // Apply date filter to raw data FIRST, before processing
+    let filteredRawData = data;
+    if (dateFilter.enabled && (dateFilter.startDate || dateFilter.endDate)) {
+      filteredRawData = data.filter(record => {
+        // Look for date fields in the raw record
+        const dateFields = Object.keys(record).filter(key => 
+          key.toLowerCase().includes('start') || 
+          key.toLowerCase().includes('end') || 
+          key.toLowerCase().includes('time') ||
+          key.toLowerCase().includes('date')
+        );
+
+        // Use the first date field found
+        let recordDate = null;
+        for (const field of dateFields) {
+          const value = record[field];
+          if (value && typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+            recordDate = new Date(value);
+            break;
+          }
+        }
+
+        if (!recordDate) return true; // If no date found, include the record
+
+        const recordDateOnly = recordDate.toISOString().split('T')[0];
+        
+        if (dateFilter.startDate && recordDateOnly < dateFilter.startDate) {
+          return false;
+        }
+        if (dateFilter.endDate && recordDateOnly > dateFilter.endDate) {
+          return false;
+        }
+        return true;
+      });
+    }
+
     // Get unique field names in the order they appear in the first record (JSON order)
-    const firstRecord = data[0] || {};
+    const firstRecord = filteredRawData[0] || {};
     const orderedFields = Object.keys(firstRecord).filter(
       key =>
         !key.startsWith('_') &&
@@ -133,16 +180,16 @@ export function DataTable({ data, questions }: DataTableProps) {
       setVisibleColumns(new Set(displayColumns.map(col => col.key)));
     }
 
-    // Calculate demographic statistics
+    // Calculate demographic statistics using filtered data
     const genderStats: { [key: string]: number } = {};
     const ageStats: { [key: string]: number } = {};
 
-    data.forEach(record => {
+    filteredRawData.forEach(record => {
       const { userType, maturity } = getUserTypeAndMaturity(record);
       const fields = getDemographicFields(userType, maturity);
       
       // Log demographic field extraction for debugging
-      if (record === data[0]) {
+      if (record === filteredRawData[0]) {
         console.log('Detected user type:', userType, 'maturity:', maturity);
         console.log('Looking for fields:', fields);
         console.log('Gender field value:', record[fields.gender]);
@@ -193,7 +240,7 @@ export function DataTable({ data, questions }: DataTableProps) {
         }
       }
       
-      if (record === data[0]) {
+      if (record === filteredRawData[0]) {
         console.log('Found gender:', genderValue, 'from field:', genderFieldUsed);
         console.log('Found age:', ageValue, 'from field:', ageFieldUsed);
       }
@@ -229,8 +276,8 @@ export function DataTable({ data, questions }: DataTableProps) {
       }
     });
 
-    // Process table data with choice labels
-    const tableData = data.map(record => {
+    // Process table data with choice labels using filtered raw data
+    const tableData = filteredRawData.map(record => {
       const processedRecord: any = {};
       displayColumns.forEach(col => {
         let value = record[col.key];
@@ -272,14 +319,15 @@ export function DataTable({ data, questions }: DataTableProps) {
     const demographicStats: DemographicStats = {
       genderStats,
       ageStats,
-      totalResponses: data.length
+      totalResponses: filteredRawData.length // Use filtered count
     };
 
     return { displayColumns, tableData, demographicStats };
-  }, [data, questions, visibleColumns.size]);
+  }, [data, questions, visibleColumns.size, dateFilter]); // Add dateFilter as dependency
 
-  // Filter and sort data
+  // Filter and sort data - simplified since date filtering is now handled in the main useMemo
   const filteredAndSortedData = useMemo(() => {
+    // Only apply text search filter since date filtering is already done
     let filtered = tableData.filter(row =>
       Object.values(row).some(value =>
         String(value).toLowerCase().includes(searchTerm.toLowerCase())
@@ -296,7 +344,7 @@ export function DataTable({ data, questions }: DataTableProps) {
     }
 
     return filtered;
-  }, [tableData, searchTerm, sortConfig]);
+  }, [tableData, searchTerm, sortConfig]); // Remove dateFilter dependency since it's handled earlier
 
   // Pagination
   const paginatedData = useMemo(() => {
@@ -325,7 +373,8 @@ export function DataTable({ data, questions }: DataTableProps) {
 
   const visibleDisplayColumns = displayColumns.filter(col => visibleColumns.has(col.key));
 
-  if (!tableData.length) {
+  // Early return only if no original data exists
+  if (!data.length) {
     return (
       <div className="border border-gray-200 rounded bg-white">
         <div className="text-center py-16">
@@ -354,7 +403,70 @@ export function DataTable({ data, questions }: DataTableProps) {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-
+          {/* Date Filter */}
+          <div className="relative">
+            <button
+              onClick={() => setShowDateFilter(!showDateFilter)}
+              className="flex w-full cursor-pointer items-center justify-center gap-2 px-3 py-2 text-xs border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <Calendar className="h-4 w-4" />
+              <span>Date Filter</span>
+              {dateFilter.enabled && <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">ON</span>}
+              <ChevronDown className={`h-4 w-4 transition-transform ${showDateFilter ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showDateFilter && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowDateFilter(false)} />
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-20">
+                  <div className="p-3">
+                    <div className="text-sm font-medium text-gray-900 mb-3">Filter by Date Range</div>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 mb-3">
+                        <input
+                          type="checkbox"
+                          checked={dateFilter.enabled}
+                          onChange={(e) => setDateFilter(prev => ({ ...prev, enabled: e.target.checked }))}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">Enable date filtering</span>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          value={dateFilter.startDate}
+                          onChange={(e) => setDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                          disabled={!dateFilter.enabled}
+                          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">End Date</label>
+                        <input
+                          type="date"
+                          value={dateFilter.endDate}
+                          onChange={(e) => setDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                          disabled={!dateFilter.enabled}
+                          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+                        />
+                      </div>
+                      
+                      <button
+                        onClick={() => setDateFilter({ startDate: '', endDate: '', enabled: false })}
+                        className="w-full px-2 py-1.5 text-xs text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                      >
+                        Clear Filter
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
           {/* Demographics Button Row */}
           <div className="relative">
             <button
@@ -490,6 +602,71 @@ export function DataTable({ data, questions }: DataTableProps) {
           </div>
 
           <div className='flex justify-center items-center gap-3'>
+            {/* Date Filter */}
+            <div className="relative">
+              <button
+                onClick={() => setShowDateFilter(!showDateFilter)}
+                className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <Calendar className="h-4 w-4" />
+                Date Filter
+                {dateFilter.enabled && <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">ON</span>}
+                <ChevronDown className={`h-4 w-4 transition-transform ${showDateFilter ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {showDateFilter && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowDateFilter(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-72 bg-white border border-gray-200 rounded shadow-lg z-20">
+                    <div className="p-4">
+                      <div className="text-sm font-medium text-gray-900 mb-3">Filter by Date Range</div>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-3">
+                          <input
+                            type="checkbox"
+                            checked={dateFilter.enabled}
+                            onChange={(e) => setDateFilter(prev => ({ ...prev, enabled: e.target.checked }))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">Enable date filtering</span>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
+                          <input
+                            type="date"
+                            value={dateFilter.startDate}
+                            onChange={(e) => setDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                            disabled={!dateFilter.enabled}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">End Date</label>
+                          <input
+                            type="date"
+                            value={dateFilter.endDate}
+                            onChange={(e) => setDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                            disabled={!dateFilter.enabled}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+                          />
+                        </div>
+                        
+                        <button
+                          onClick={() => setDateFilter({ startDate: '', endDate: '', enabled: false })}
+                          className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                        >
+                          Clear Filter
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Demographics Button */}
             <div className="relative">
               <button
@@ -638,17 +815,29 @@ export function DataTable({ data, questions }: DataTableProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {paginatedData.map((row, index) => (
-              <tr key={index} className="hover:bg-gray-50 border-b border-gray-100">
-                {visibleDisplayColumns.map(col => (
-                  <td key={col.key} className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 last:border-r-0">
-                    <div className="truncate" title={String(row[col.key])}>
-                      {String(row[col.key])}
-                    </div>
-                  </td>
-                ))}
+            {filteredAndSortedData.length === 0 ? (
+              <tr>
+                <td colSpan={visibleDisplayColumns.length} className="px-3 py-8 text-center text-gray-500">
+                  <div className="flex flex-col items-center">
+                    <Search className="h-8 w-8 text-gray-300 mb-2" />
+                    <p className="text-sm">No records match your search criteria</p>
+                    <p className="text-xs text-gray-400 mt-1">Try adjusting your filters or search terms</p>
+                  </div>
+                </td>
               </tr>
-            ))}
+            ) : (
+              paginatedData.map((row, index) => (
+                <tr key={index} className="hover:bg-gray-50 border-b border-gray-100">
+                  {visibleDisplayColumns.map(col => (
+                    <td key={col.key} className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 last:border-r-0">
+                      <div className="truncate" title={String(row[col.key])}>
+                        {String(row[col.key])}
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -659,7 +848,7 @@ export function DataTable({ data, questions }: DataTableProps) {
         <div className="flex flex-col gap-3 sm:hidden">
           {/* Results info */}
           <div className="text-xs text-gray-700 text-center">
-            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedData.length)} of {filteredAndSortedData.length} results
+            Showing {filteredAndSortedData.length === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedData.length)} of {filteredAndSortedData.length} results
           </div>
           
           {/* Pagination controls */}
@@ -725,7 +914,7 @@ export function DataTable({ data, questions }: DataTableProps) {
         {/* Desktop Pagination Layout */}
         <div className="hidden sm:flex items-center justify-between">
           <div className="text-sm text-gray-700">
-            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedData.length)} of {filteredAndSortedData.length} results
+            Showing {filteredAndSortedData.length === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedData.length)} of {filteredAndSortedData.length} results
           </div>
           
           {totalPages > 1 && (
