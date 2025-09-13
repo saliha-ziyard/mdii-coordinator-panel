@@ -97,12 +97,20 @@ export function CoordinatorDashboard() {
         try {
           console.log(`Checking ${role} form (${formId}) for Tool ID: ${toolId}`)
           const data = await apiClient.fetchData(formId)
+
+          // For domain experts section:
           const matchingRecords = data.results.filter(record => {
-            // All innovator forms use group_requester/Q_13110000 for Tool ID
-            const recordToolId = String(record["group_requester/Q_13110000"] || "").trim()
-            console.log(`${role}: Found Tool ID '${recordToolId}' comparing with '${toolId}'`)
-            return recordToolId === String(toolId).trim()
+            const recordToolId = String(
+              record["group_intro/Q_13110000"] || 
+              record["group_requester/Q_13110000"] ||
+              record["Q_13110000"] || 
+              ""
+            ).trim().toLowerCase()
+            const searchToolId = String(toolId).trim().toLowerCase()
+            console.log(`Domain Expert: Found Tool ID '${recordToolId}' comparing with '${searchToolId}'`)
+            return recordToolId === searchToolId
           })
+
           
           console.log(`${role}: Found ${matchingRecords.length} matching records`)
           

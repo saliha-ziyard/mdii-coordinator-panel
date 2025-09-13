@@ -77,11 +77,14 @@ export class KoboApiClient {
       const data = await this.fetchData(KOBO_CONFIG.MAIN_FORM_ID);
       console.log(`Client: Total records to search: ${data.results.length}`);
 
+      // Convert search toolId to lowercase for case-insensitive comparison
+      const searchToolId = String(toolId).trim().toLowerCase();
+
       for (let i = 0; i < data.results.length; i++) {
         const record = data.results[i];
-        const recordId = String(record[KOBO_CONFIG.TOOL_ID_FIELD] || "").trim();
+        const recordId = String(record[KOBO_CONFIG.TOOL_ID_FIELD] || "").trim().toLowerCase();
         
-        if (recordId === String(toolId).trim()) {
+        if (recordId === searchToolId) {
           console.log(`Client: Found matching record at position ${i}!`);
           console.log(`Client: Tool name: ${record[KOBO_CONFIG.TOOL_NAME_FIELD] || 'N/A'}`);
           console.log(`Client: Maturity: ${record[KOBO_CONFIG.MATURITY_FIELD] || 'N/A'}`);
@@ -126,25 +129,28 @@ async getSurveyData(toolId: string, maturityLevel: "advanced" | "early"): Promis
       // Fetch survey data
       const data = await this.fetchData(formId);
       
+      // Convert search toolId to lowercase for case-insensitive comparison
+      const searchToolId = String(toolId).trim().toLowerCase();
+      
       // Find matching records
-    const matchingRecords = [];
+      const matchingRecords = [];
       for (const record of data.results) {
         let recordToolId = "";
         
         if (record["group_toolid/Q_13110000"]) {
-          recordToolId = String(record["group_toolid/Q_13110000"]).trim();
+          recordToolId = String(record["group_toolid/Q_13110000"]).trim().toLowerCase();
         } else if (record["group_requester/Q_13110000"]) {
-          recordToolId = String(record["group_requester/Q_13110000"]).trim();
+          recordToolId = String(record["group_requester/Q_13110000"]).trim().toLowerCase();
         } else if (record["group_individualinfo/Q_13110000"]) {
-          recordToolId = String(record["group_individualinfo/Q_13110000"]).trim();
+          recordToolId = String(record["group_individualinfo/Q_13110000"]).trim().toLowerCase();
         } else if (record["group_intro/Q_13110000"]) {
-          recordToolId = String(record["group_intro/Q_13110000"]).trim();
+          recordToolId = String(record["group_intro/Q_13110000"]).trim().toLowerCase();
         } else if (record["Q_13110000"]) {
-          recordToolId = String(record["Q_13110000"]).trim();
+          recordToolId = String(record["Q_13110000"]).trim().toLowerCase();
         }
         
-        console.log(`Client: Survey ${userType} record ID: '${recordToolId}'`);
-        if (recordToolId === String(toolId).trim()) {
+        console.log(`Client: Survey ${userType} record ID: '${recordToolId}' comparing with '${searchToolId}'`);
+        if (recordToolId === searchToolId) {
           matchingRecords.push(record);
         }
       }
